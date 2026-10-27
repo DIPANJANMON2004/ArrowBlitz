@@ -1,0 +1,57 @@
+name: 🤖 Build ArrowBlitz APK
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:          # ← lets you trigger manually from GitHub UI
+
+jobs:
+  build:
+    name: Build Android APK
+    runs-on: ubuntu-latest
+
+    steps:
+      # ── 1. Checkout repo ──────────────────────────────────────────────────
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          lfs: true
+
+      # ── 2. Cache Unity Library folder (speeds up repeat builds) ──────────
+      - name: Cache Unity Library
+        uses: actions/cache@v4
+        with:
+          path: Library
+          key: Library-Android-${{ hashFiles('Assets/**', 'Packages/**', 'ProjectSettings/**') }}
+          restore-keys: |
+            Library-Android-
+            Library-
+
+      # ── 3. Build with game-ci/unity-builder ───────────────────────────────
+      - name: Build Android APK
+        uses: game-ci/unity-builder@v4
+        env:
+          UNITY_LICENSE:  ${{ secrets.UNITY_LICENSE }}
+          UNITY_EMAIL:    ${{ secrets.UNITY_EMAIL }}
+          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+        with:
+          targetPlatform: Android
+          unityVersion:   6000.0.58f2
+          buildMethod:    BuildScript.BuildAndroid
+          androidExportType: androidPackage          # produces .apk (not .aab)
+          androidKeystoreName:  ""                   # leave blank = debug keystore
+          androidKeystoreBase64: ""
+          androidKeystorePass:  ""
+          androidKeyaliasName:  ""
+          androidKeyaliasPass:  ""
+          buildName:      ArrowBlitz
+          buildsPath:     Builds
+
+      # ── 4. Upload APK as a downloadable artifact ─────────────────────────
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ArrowBlitz-Android-APK
+          path: Builds/Android/ArrowBlitz.apk
+          retention-days: 14       # artifact stays for 14 days; increase if needed
